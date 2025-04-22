@@ -149,6 +149,40 @@ map<string, double> compute_tf(const vector<string>& tokens) {
     return tf;
 }
 
+#include <cmath>
+
+map<string, double> compute_idf(const vector<vector<string>>& all_tokens, const set<string>& vocabulary) {
+    map<string, double> idf;
+    int N = all_tokens.size();
+
+    for (const auto& word : vocabulary) {
+        int doc_count = 0;
+        for (const auto& tokens : all_tokens) {
+            if (find(tokens.begin(), tokens.end(), word) != tokens.end()) {
+                doc_count++;
+            }
+        }
+        if (doc_count > 0) {
+            idf[word] = log((double)N / doc_count);
+        }
+    }
+
+    return idf;
+}
+
+map<string, double> compute_tfidf(const map<string, double>& tf, const map<string, double>& idf) {
+    map<string, double> tfidf;
+
+    for (const auto& [word, tf_value] : tf) {
+        auto it = idf.find(word);
+        if (it != idf.end()) {
+            tfidf[word] = tf_value * it->second;
+        }
+    }
+
+    return tfidf;
+}
+
 
 int main() {
     // string filename = "IMDB_Dataset.csv";
@@ -157,42 +191,28 @@ int main() {
 
     cout << "Number of reviews: " << reviews.size() << endl;
 
-    // Tokenization + Vocabulary
-    set<string> vocabulary = build_vocabulary(reviews);
-    cout << "Vocabulary size: " << vocabulary.size() << endl;
+    // // Tokenization + Vocabulary
+    // set<string> vocabulary = build_vocabulary(reviews);
+    // cout << "Vocabulary size: " << vocabulary.size() << endl;
 
-    set<string> stopwords = get_stopwords();
+    // set<string> stopwords = get_stopwords();
 
-    for (int i = 0; i < 2 && i < reviews.size(); ++i) {
-        vector<string> raw_tokens = tokenize(reviews[i].text);
-        vector<string> filtered_tokens;
-
-        // filter tokens using stopwords, length, repetition
-        for (const auto& word : raw_tokens) {
-            if (
-                word.length() >= 3 &&
-                !regex_match(word, regex("([a-z])\\1{2,}")) &&
-                stopwords.find(word) == stopwords.end()
-            ) {
-                filtered_tokens.push_back(word);
-            }
-        }
-
-        map<string, double> tf = compute_tf(filtered_tokens);
-
-        cout << "\nTF for review #" << i + 1 << ":\n";
-        int count = 0;
-        for (const auto& [word, score] : tf) {
-            if (count++ >= 10) break; // just show 10 words
-            cout << word << ": " << score << "\n";
-        }
-    }
-
-
-    // // TF example: compute for first 2 reviews
     // for (int i = 0; i < 2 && i < reviews.size(); ++i) {
-    //     vector<string> tokens = tokenize(reviews[i].text);
-    //     map<string, double> tf = compute_tf(tokens);
+    //     vector<string> raw_tokens = tokenize(reviews[i].text);
+    //     vector<string> filtered_tokens;
+
+    //     // filter tokens using stopwords, length, repetition
+    //     for (const auto& word : raw_tokens) {
+    //         if (
+    //             word.length() >= 3 &&
+    //             !regex_match(word, regex("([a-z])\\1{2,}")) &&
+    //             stopwords.find(word) == stopwords.end()
+    //         ) {
+    //             filtered_tokens.push_back(word);
+    //         }
+    //     }
+
+    //     map<string, double> tf = compute_tf(filtered_tokens);
 
     //     cout << "\nTF for review #" << i + 1 << ":\n";
     //     int count = 0;
@@ -202,5 +222,45 @@ int main() {
     //     }
     // }
 
+    set<string> stopwords = get_stopwords();
+
+    // Step 1: Tokenize and filter all reviews
+    vector<vector<string>> all_tokens;
+    for (const auto& review : reviews) {
+        vector<string> raw_tokens = tokenize(review.text);
+        vector<string> filtered_tokens;
+        for (const auto& word : raw_tokens) {
+            if (
+                word.length() >= 3 &&
+                !regex_match(word, regex("([a-z])\\1{2,}")) &&
+                stopwords.find(word) == stopwords.end()
+            ) {
+                filtered_tokens.push_back(word);
+            }
+        }
+        all_tokens.push_back(filtered_tokens);
+    }
+
+    // Step 2: Build vocabulary (from all filtered tokens)
+    set<string> vocabulary;
+    for (const auto& tokens : all_tokens) {
+        vocabulary.insert(tokens.begin(), tokens.end());
+    }
+
+    // Step 3: Compute IDF
+    map<string, double> idf = compute_idf(all_tokens, vocabulary);
+
+    // Step 4: Compute and show TF-IDF for first review
+    for (int i = 0; i < 1 && i < all_tokens.size(); ++i) {
+        map<string, double> tf = compute_tf(all_tokens[i]);
+        map<string, double> tfidf = compute_tfidf(tf, idf);
+
+        cout << "\nTF-IDF for review #" << i + 1 << ":\n";
+        int count = 0;
+        for (const auto& [word, score] : tfidf) {
+            // if (count++ >= 10) break;
+            cout << word << ": " << score << "\n";
+        }
+    }
     return 0;
 }
