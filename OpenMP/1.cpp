@@ -1,3 +1,5 @@
+// cls; g++ .\1.cpp -o .\1.exe; .\1.exe
+
 //1
 #include <iostream>
 #include <fstream>
@@ -183,6 +185,55 @@ map<string, double> compute_tfidf(const map<string, double>& tf, const map<strin
     return tfidf;
 }
 
+#include <unordered_map>
+#include <random>
+
+// Sigmoid function
+double sigmoid(double z) {
+    return 1.0 / (1.0 + exp(-z));
+}
+
+// Predict probability for a single example
+double predict_prob(const unordered_map<string, double>& features, const map<string, double>& weights) {
+    double z = 0.0;
+    for (const auto& [word, value] : features) {
+        auto it = weights.find(word);
+        if (it != weights.end()) {
+            z += value * it->second;
+        }
+    }
+    return sigmoid(z);
+}
+
+// Train logistic regression with SGD
+map<string, double> train_logistic_regression(
+    const vector<unordered_map<string, double>>& X, // list of tf-idf maps per review
+    const vector<int>& y, // labels: 0 or 1
+    int epochs = 10,
+    double lr = 0.1
+) {
+    map<string, double> weights;
+
+    for (int epoch = 0; epoch < epochs; ++epoch) {
+        for (size_t i = 0; i < X.size(); ++i) {
+            double pred = predict_prob(X[i], weights);
+            double error = y[i] - pred;
+
+            for (const auto& [word, value] : X[i]) {
+                weights[word] += lr * error * value;
+            }
+        }
+        cout << "Epoch " << epoch + 1 << " done\n";
+    }
+
+    return weights;
+}
+
+// Predict label: 0 or 1
+int predict_label(const unordered_map<string, double>& features, const map<string, double>& weights) {
+    return predict_prob(features, weights) >= 0.5 ? 1 : 0;
+}
+
 
 int main() {
     // string filename = "IMDB_Dataset.csv";
@@ -190,37 +241,6 @@ int main() {
     vector<Review> reviews = load_csv(filename);
 
     cout << "Number of reviews: " << reviews.size() << endl;
-
-    // // Tokenization + Vocabulary
-    // set<string> vocabulary = build_vocabulary(reviews);
-    // cout << "Vocabulary size: " << vocabulary.size() << endl;
-
-    // set<string> stopwords = get_stopwords();
-
-    // for (int i = 0; i < 2 && i < reviews.size(); ++i) {
-    //     vector<string> raw_tokens = tokenize(reviews[i].text);
-    //     vector<string> filtered_tokens;
-
-    //     // filter tokens using stopwords, length, repetition
-    //     for (const auto& word : raw_tokens) {
-    //         if (
-    //             word.length() >= 3 &&
-    //             !regex_match(word, regex("([a-z])\\1{2,}")) &&
-    //             stopwords.find(word) == stopwords.end()
-    //         ) {
-    //             filtered_tokens.push_back(word);
-    //         }
-    //     }
-
-    //     map<string, double> tf = compute_tf(filtered_tokens);
-
-    //     cout << "\nTF for review #" << i + 1 << ":\n";
-    //     int count = 0;
-    //     for (const auto& [word, score] : tf) {
-    //         if (count++ >= 10) break; // just show 10 words
-    //         cout << word << ": " << score << "\n";
-    //     }
-    // }
 
     set<string> stopwords = get_stopwords();
 
@@ -251,16 +271,42 @@ int main() {
     map<string, double> idf = compute_idf(all_tokens, vocabulary);
 
     // Step 4: Compute and show TF-IDF for first review
-    for (int i = 0; i < 1 && i < all_tokens.size(); ++i) {
-        map<string, double> tf = compute_tf(all_tokens[i]);
+    // for (int i = 0; i < 1 && i < all_tokens.size(); ++i) {
+    //     map<string, double> tf = compute_tf(all_tokens[i]);
+    //     map<string, double> tfidf = compute_tfidf(tf, idf);
+
+    //     cout << "\nTF-IDF for review #" << i + 1 << ":\n";
+    //     int count = 0;
+    //     for (const auto& [word, score] : tfidf) {
+    //         // if (count++ >= 10) break;
+    //         cout << word << ": " << score << "\n";
+    //     }
+    // }
+
+    // Step 5: Build TF-IDF vector (X) and label vector (y)
+    vector<unordered_map<string, double>> X;
+    vector<int> y;
+
+    for (size_t i = 0; i < reviews.size(); ++i) {
+        const auto& tokens = all_tokens[i];
+        map<string, double> tf = compute_tf(tokens);
         map<string, double> tfidf = compute_tfidf(tf, idf);
 
-        cout << "\nTF-IDF for review #" << i + 1 << ":\n";
-        int count = 0;
-        for (const auto& [word, score] : tfidf) {
-            // if (count++ >= 10) break;
-            cout << word << ": " << score << "\n";
-        }
+        // Convert tfidf map (std::map) to unordered_map (lighter and faster lookup)
+        unordered_map<string, double> tfidf_vec(tfidf.begin(), tfidf.end());
+        X.push_back(tfidf_vec);
+
+        // Convert sentiment to label: positive → 1, negative → 0
+        y.push_back(reviews[i].sentiment == "positive" ? 1 : 0);
     }
+
+    map<string, double> weights = train_logistic_regression(X, y);
+
+    cout << "---------------";
+
+    int predicted = predict_label(X[0], weights);
+    cout << "\nPredicted sentiment for review #1: " << (predicted == 1 ? "positive" : "negative") << endl;
+    cout << "Actual sentiment: " << reviews[0].sentiment << endl;
+
     return 0;
 }
