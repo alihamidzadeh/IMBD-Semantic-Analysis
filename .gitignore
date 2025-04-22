@@ -1,3 +1,4 @@
 archive.zip
 *.exe
 OpenMP/.vscode
+*.csv
