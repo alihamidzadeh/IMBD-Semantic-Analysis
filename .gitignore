@@ -1,4 +1,5 @@
 archive.zip
 *.exe
 OpenMP/.vscode
-*.csv
+# *.csv
+IMDB_Dataset.csv
