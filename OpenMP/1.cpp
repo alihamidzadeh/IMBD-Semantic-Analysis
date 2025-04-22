@@ -1,5 +1,8 @@
 // cls; g++ .\1.cpp -o .\1.exe; .\1.exe
 
+// Link of dataset: 
+//https://www.kaggle.com/datasets/lakshmi25npathi/imdb-dataset-of-50k-movie-reviews?resource=download
+
 //1
 #include <iostream>
 #include <fstream>
