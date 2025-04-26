@@ -284,8 +284,8 @@ int main() {
     // Start timing
     auto start_time = chrono::high_resolution_clock::now();
 
-    string filename = "Minimal_IMDB_Dataset.csv";
-    // string filename = "Original_IMDB_Dataset.csv";
+    // string filename = "Minimal_IMDB_Dataset.csv";
+    string filename = "Original_IMDB_Dataset.csv";
     vector<Review> reviews = load_csv(filename);
 
     cout << "Number of reviews: " << reviews.size() << endl;
