@@ -1,3 +1,5 @@
+// cls; g++ -fopenmp .\parallel_version.cpp -o 2.exe; .\2.exe
+
 // Parallel version of IMDB sentiment analysis using OpenMP
 #include <iostream>
 #include <fstream>
@@ -119,25 +121,33 @@ vector<string> tokenize(const string& text) {
 // Parallel function to build vocabulary
 set<string> build_vocabulary(const vector<Review>& reviews) {
     set<string> vocab;
+    set<string> stopwords = get_stopwords();
+
     #pragma omp parallel
     {
-        set<string> local_vocab;
+        set<string> local_vocab; // هر ترد یک local vocab داره
         #pragma omp for nowait
         for (size_t i = 0; i < reviews.size(); ++i) {
+            if (reviews[i].text.empty()) continue;
+
             vector<string> tokens = tokenize(reviews[i].text);
             for (const auto& word : tokens) {
-                if (word.length() >= 3 &&
-                    !regex_match(word, regex("([a-z])\\1{2,}")) &&
-                    get_stopwords().find(word) == get_stopwords().end()) {
+                if (word.length() >= 2 && stopwords.find(word) == stopwords.end()) {
                     local_vocab.insert(word);
                 }
             }
         }
+
+        // Merge local_vocab into shared vocab
         #pragma omp critical
-        vocab.insert(local_vocab.begin(), local_vocab.end());
+        {
+            vocab.insert(local_vocab.begin(), local_vocab.end());
+        }
     }
+
     return vocab;
 }
+
 
 // Parallel TF computation
 map<string, double> compute_tf(const vector<string>& tokens) {
@@ -299,6 +309,32 @@ double calculate_accuracy(
     return (double)correct / X.size() * 100.0;
 }
 
+void answer(
+    vector<unordered_map<string, double>> X,
+    map<string, double> weights,
+    vector<Review> reviews
+    ) {
+    int number = 0;
+    int predicted;
+    while (true)
+    {
+        cout << "\nEnter Review Number (2 - 50,001): ";
+        cin >> number;
+        if (number < 2 || number > 50001){
+            cout << "Wrong Number";
+            continue;
+        }
+        number -= 2; //cause it starts from 0 :)
+        predicted = predict_label(X[number], weights);
+        cout << "\nPredicted sentiment for review #" << number+2 << ": " << (predicted == 1 ? "positive" : "negative") << endl;
+        cout << "Actual sentiment: " << reviews[number].sentiment << endl;
+        if ((predicted == 1 && reviews[number].sentiment == "negative") ||(predicted == 0 && reviews[number].sentiment == "positive"))
+            cout << "Wrong Answer!!!" << endl;
+        cout << "-----------------------------";
+    }
+    
+}
+
 int main() {
     // Set number of threads
     omp_set_num_threads(omp_get_max_threads());
@@ -350,8 +386,10 @@ int main() {
     auto end_time = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>(end_time - start_time);
     
-    cout << "\nTotal processing time: " << duration.count() << " milliseconds" << endl;
+    // cout << "\nTotal processing time: " << duration.count() << " milliseconds" << endl;
     cout << "Total processing time: " << duration.count() / 1000.0 << " seconds" << endl;
+
+    answer(X, weights, reviews);
 
     return 0;
 } 
