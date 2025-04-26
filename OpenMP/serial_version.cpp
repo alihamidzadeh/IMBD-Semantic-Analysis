@@ -118,15 +118,17 @@ vector<string> tokenize(const string& text) {
 // Function to build vocabulary from all reviews
 set<string> build_vocabulary(const vector<Review>& reviews) {
     set<string> vocab;
+    set<string> stopwords = get_stopwords();
 
     for (const auto& review : reviews) {
+        if (review.text.empty()) continue; // skip empty reviews
+
         vector<string> tokens = tokenize(review.text);
         for (const auto& word : tokens) {
-            // Filter by length, repetition, and stopword check
             if (
-                word.length() >= 3 &&
-                !regex_match(word, regex("([a-z])\\1{2,}")) &&
-                get_stopwords().find(word) == get_stopwords().end()
+                word.length() >= 2 &&  // Relaxed length check
+                stopwords.find(word) == stopwords.end()
+                // Removed regex check temporarily
             ) {
                 vocab.insert(word);
             }
@@ -135,7 +137,6 @@ set<string> build_vocabulary(const vector<Review>& reviews) {
 
     return vocab;
 }
-
 
 //3
 
@@ -275,9 +276,6 @@ void answer(
         if ((predicted == 1 && reviews[number].sentiment == "negative") ||(predicted == 0 && reviews[number].sentiment == "positive"))
             cout << "Wrong Answer!!!" << endl;
         cout << "-----------------------------";
-        cout << reviews[number].text << endl;
-        cout << reviews[number].sentiment << endl;
-
     }
     
 }
