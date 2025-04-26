@@ -213,7 +213,7 @@ double predict_prob(const unordered_map<string, double>& features, const map<str
 map<string, double> train_logistic_regression(
     const vector<unordered_map<string, double>>& X, // list of tf-idf maps per review
     const vector<int>& y, // labels: 0 or 1
-    int epochs = 10,
+    int epochs = 20,
     double lr = 0.1
 ) {
     map<string, double> weights;
@@ -238,7 +238,6 @@ int predict_label(const unordered_map<string, double>& features, const map<strin
     return predict_prob(features, weights) >= 0.5 ? 1 : 0;
 }
 
-// Add this new function before main()
 double calculate_accuracy(
     const vector<unordered_map<string, double>>& X,
     const vector<int>& y,
@@ -254,12 +253,41 @@ double calculate_accuracy(
     return (double)correct / X.size() * 100.0;
 }
 
+void answer(
+    vector<unordered_map<string, double>> X,
+    map<string, double> weights,
+    vector<Review> reviews
+    ) {
+    int number = 0;
+    int predicted;
+    while (true)
+    {
+        cout << "\nEnter Review Number (2 - 50,001): ";
+        cin >> number;
+        if (number < 2 || number > 50001){
+            cout << "Wrong Number";
+            continue;
+        }
+        number -= 2; //cause it starts from 0 :)
+        predicted = predict_label(X[number], weights);
+        cout << "\nPredicted sentiment for review #" << number+2 << ": " << (predicted == 1 ? "positive" : "negative") << endl;
+        cout << "Actual sentiment: " << reviews[number].sentiment << endl;
+        if ((predicted == 1 && reviews[number].sentiment == "negative") ||(predicted == 0 && reviews[number].sentiment == "positive"))
+            cout << "Wrong Answer!!!" << endl;
+        cout << "-----------------------------";
+        cout << reviews[number].text << endl;
+        cout << reviews[number].sentiment << endl;
+
+    }
+    
+}
+
 int main() {
     // Start timing
     auto start_time = chrono::high_resolution_clock::now();
 
-    // string filename = "Minimal_IMDB_Dataset.csv";
-    string filename = "Original_IMDB_Dataset.csv";
+    string filename = "Minimal_IMDB_Dataset.csv";
+    // string filename = "Original_IMDB_Dataset.csv";
     vector<Review> reviews = load_csv(filename);
 
     cout << "Number of reviews: " << reviews.size() << endl;
@@ -307,8 +335,12 @@ int main() {
     auto end_time = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::milliseconds>(end_time - start_time);
     
-    cout << "\nTotal processing time: " << duration.count() << " milliseconds" << endl;
+    // cout << "\nTotal processing time: " << duration.count() << " milliseconds" << endl;
     cout << "Total processing time: " << duration.count() / 1000.0 << " seconds" << endl;
+
+    cout << "-----------------------------";
+
+    answer(X, weights, reviews);
 
     return 0;
 }
